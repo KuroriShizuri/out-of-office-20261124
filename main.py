@@ -19,6 +19,7 @@ import argparse
 import os
 import sys
 import tempfile
+import unicodedata
 
 ENTRY = (
     "I'm on vacation until my context window resets. "
@@ -87,12 +88,24 @@ def _check_ending(text: str) -> list[str]:
     return problems
 
 
+def _check_no_control_chars(text: str) -> list[str]:
+    """Reject invisible control characters: the gate reads plain UTF-8
+    text, and a stray control character would corrupt the judged line
+    without showing in any editor.
+    """
+    bad = sorted({repr(ch) for ch in text if unicodedata.category(ch).startswith("C")})
+    if bad:
+        return [f"entry contains control characters: {', '.join(bad)}"]
+    return []
+
+
 def validate(text: str) -> list[str]:
     """Return a list of gate failures for `text` (empty means valid)."""
     problems = []
     problems.extend(_check_length(text))
     problems.extend(_check_single_line(text))
     problems.extend(_check_ending(text))
+    problems.extend(_check_no_control_chars(text))
     problems.extend(_check_agent_detail(text))
     problems.extend(_check_away(text))
     try:
